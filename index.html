@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coordinación Feria — Horarios</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- =====================================================
+     FIREBASE CONFIG — REEMPLAZA CON TUS CREDENCIALES
+     Crea un proyecto en https://console.firebase.google.com
+     → Add app → Web app → copia el firebaseConfig
+     → También activa Realtime Database en modo "test"
+     ===================================================== -->
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBtKDrYPZyMwFchbtX25qh5LXacF42amVA",
+    authDomain: "votacion-feria-829f7.firebaseapp.com",
+    databaseURL: "https://votacion-feria-829f7-default-rtdb.firebaseio.com",
+    projectId: "votacion-feria-829f7",
+    storageBucket: "votacion-feria-829f7.firebasestorage.app",
+    messagingSenderId: "903865288135",
+    appId: "1:903865288135:web:4b84d32145b104550c05e2",
+    measurementId: "G-GYP1F68ZFP"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
+
+<style>
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2027;
+    --border: #2a2d35;
+    --text: #e8eaf0;
+    --muted: #5a5f70;
+    --accent: #c8f060;
+    --green: #3ddc84;
+    --green-bg: rgba(61,220,132,0.15);
+    --red: #ff5f6d;
+    --red-bg: rgba(255,95,109,0.15);
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 8px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+  }
+
+  .logo span {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  #session-banner {
+    margin-left: auto;
+    font-size: 0.75rem;
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 20px;
+    opacity: 0.6;
+    transition: all 0.3s;
+  }
+
+  #logout-btn {
+    display: none;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    transition: all 0.2s;
+  }
+
+  #logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 70px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 20px;
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 70px);
+    overflow-y: auto;
+  }
+
+  .sidebar-section { margin-bottom: 28px; }
+
+  .sidebar-title {
+    font-family: var(--font-head);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* INPUT AÑADIR */
+  .add-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .add-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .add-row input:focus { border-color: var(--accent); }
+
+  .add-row input::placeholder { color: var(--muted); }
+
+  .btn-add {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-add:hover { opacity: 0.85; }
+
+  /* USER LIST */
+  #user-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .no-users { color: var(--muted); font-size: 0.75rem; }
+
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    transition: border-color 0.2s;
+  }
+
+  .user-chip-me {
+    border-color: var(--uc, var(--accent));
+    background: color-mix(in srgb, var(--uc, var(--accent)) 8%, var(--surface2));
+  }
+
+  .chip-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chip-name { flex: 1; }
+
+  .chip-you {
+    font-size: 0.65rem;
+    background: var(--accent);
+    color: #000;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  .chip-del {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+
+  .chip-del:hover { color: var(--red); background: var(--red-bg); }
+
+  /* IDENTIFY */
+  .identify-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 9px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a5f70' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .identify-select:focus { border-color: var(--accent); }
+
+  #edit-hint {
+    display: none;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  /* LEYENDA */
+  .legend { display: flex; flex-direction: column; gap: 6px; }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 28px; height: 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  /* CONTENT */
+  .content { padding: 28px 28px; overflow-x: auto; }
+
+  .matrix-wrapper { display: flex; flex-direction: column; gap: 32px; }
+
+  .day-block {}
+
+  .day-label {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .day-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .grid-outer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .grid-head, .grid-row {
+    display: grid;
+    grid-template-columns: 120px repeat(auto-fill, minmax(80px, 1fr)) 100px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .grid-head { background: var(--surface2); }
+  .grid-row:last-child { border-bottom: none; }
+  .grid-row:hover { background: rgba(255,255,255,0.02); }
+
+  .slot-label-head, .slot-label {
+    padding: 10px 14px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border);
+  }
+
+  .slot-label-head { font-weight: 600; }
+
+  .user-head {
+    padding: 10px 8px;
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-right: 1px solid var(--border);
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .user-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .you-tag {
+    font-size: 0.58rem;
+    background: var(--accent);
+    color: #000;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+
+  .summary-head {
+    padding: 10px 8px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* CELLS */
+  .cell {
+    padding: 9px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--border);
+    font-size: 0.85rem;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .cell-empty { color: var(--border); }
+  .cell-green { background: var(--green-bg); color: var(--green); }
+  .cell-red   { background: var(--red-bg);   color: var(--red); }
+
+  .cell-clickable {
+    cursor: pointer;
+  }
+
+  .cell-clickable:hover {
+    filter: brightness(1.3);
+    background: rgba(255,255,255,0.05);
+  }
+
+  .cell-clickable.cell-green:hover { background: rgba(61,220,132,0.25); }
+  .cell-clickable.cell-red:hover   { background: rgba(255,95,109,0.25); }
+
+  /* SUMMARY */
+  .summary-cell {
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .summary-num {
+    font-size: 0.72rem;
+    font-weight: 500;
+  }
+
+  .summary-bar {
+    width: 60px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .summary-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+
+  .summary-full .summary-fill  { background: var(--green); }
+  .summary-full .summary-num   { color: var(--green); }
+  .summary-half .summary-fill  { background: #f0c040; }
+  .summary-half .summary-num   { color: #f0c040; }
+  .summary-low .summary-fill   { background: var(--red); }
+  .summary-low .summary-num    { color: var(--muted); }
+
+  .empty-state {
+    padding: 60px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent);
+    color: #000;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: var(--font-head);
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  #toast.toast-show { transform: translateX(-50%) translateY(0); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 768px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { position: static; height: auto; }
+    .content { padding: 16px; }
+    .grid-head, .grid-row {
+      grid-template-columns: 90px repeat(auto-fill, minmax(55px, 1fr)) 75px;
+    }
+    .slot-label { font-size: 0.62rem; padding: 8px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">feria<span>.horarios</span></div>
+  <div id="session-banner">No identificado</div>
+  <button id="logout-btn" onclick="window.logout()">Salir</button>
+</header>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">👥 Añadir compañero</div>
+      <div class="add-row">
+        <input type="text" id="new-user-input" placeholder="Nombre..." maxlength="20">
+        <button class="btn-add" onclick="window.addUser()">+</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">🎯 Identificarte</div>
+      <select id="identify-select" class="identify-select">
+        <option value="">— selecciona —</option>
+      </select>
+      <p id="edit-hint">Haz click en las celdas para marcar tu disponibilidad.<br>
+        <strong style="color:var(--green)">✓ verde</strong> = disponible &nbsp;
+        <strong style="color:var(--red)">✗ rojo</strong> = ocupado<br>
+        Click de nuevo para borrar.
+      </p>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">👤 Compañeros</div>
+      <div id="user-list"><div class="no-users">Sin compañeros aún</div></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">📖 Leyenda</div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot cell-green" style="background:var(--green-bg);color:var(--green)">✓</div>
+          <span>Disponible</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot cell-red" style="background:var(--red-bg);color:var(--red)">✗</div>
+          <span>Ocupado</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--surface2);color:var(--muted)">·</div>
+          <span>Sin marcar</span>
+        </div>
+        <div class="legend-item">
+          <div style="width:28px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;background:var(--surface2);color:var(--green)">6/6</div>
+          <span>Todos disponibles</span>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+    <div id="matrix-container">
+      <div class="empty-state">Añade compañeros en el panel izquierdo para comenzar</div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+</body>
+</html>

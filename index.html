@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>v6 Coordinación Feria — Horarios</title>
+<title>v7 Coordinación Feria — Horarios</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 
 <!-- =====================================================
@@ -78,6 +78,9 @@
   window.renderMatrix = function() {
     const container = document.getElementById("matrix-container");
     if (!container) return;
+    // Preservar scroll horizontal antes de redibujar
+    const scroller = container.querySelector(".matrix-scroll");
+    const savedScroll = scroller ? scroller.scrollLeft : 0;
 
     const users = Object.keys(registeredUsers);
     if (users.length === 0) {
@@ -153,6 +156,9 @@
     html += `</tbody></table></div>`;
 
     container.innerHTML = html;
+    // Restaurar scroll horizontal
+    const newScroller = container.querySelector(".matrix-scroll");
+    if (newScroller && savedScroll) newScroller.scrollLeft = savedScroll;
   };
 
   // ————— CALCULAR GANADORES —————
@@ -611,16 +617,16 @@
   /* CONTENT */
   .content { padding: 28px 28px; overflow-x: auto; }
 
-  .matrix-scroll { overflow-x: auto; }
-
   .big-table {
     border-collapse: collapse;
     min-width: 100%;
     background: var(--surface);
+    font-size: 0.75rem;
+  }
+  .matrix-scroll {
+    overflow-x: auto;
     border: 1px solid var(--border);
     border-radius: 10px;
-    overflow: hidden;
-    font-size: 0.75rem;
   }
 
   .th-corner {
@@ -628,6 +634,9 @@
     min-width: 90px;
     border-right: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
+    position: sticky;
+    left: 0;
+    z-index: 3;
   }
 
   .th-day {
@@ -675,6 +684,9 @@
     white-space: nowrap;
     background: var(--surface2);
     font-weight: 500;
+    position: sticky;
+    left: 0;
+    z-index: 2;
   }
 
   .big-table tbody tr:last-child td { border-bottom: none; }

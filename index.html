@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>v4 Coordinación Feria — Horarios</title>
+<title>v5 Coordinación Feria — Horarios</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 
 <!-- =====================================================
@@ -33,15 +33,17 @@
 
   // ————— ESTADO LOCAL —————
   let currentUser = null;
-  const DAYS = ["Lunes", "Miércoles"];
+  const DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
   const SLOTS = [
     "08:00–09:00", "09:00–10:00", "10:00–11:00", "11:00–12:00",
     "12:00–13:00", "13:00–14:00", "14:00–15:00", "15:00–16:00",
-    "16:00–17:00", "17:00–18:00", "18:00–19:00", "19:00–20:00"
+    "16:00–17:00", "17:00–18:00", "18:00–19:00", "19:00–20:00",
+    "20:00-21:00", "21:00-22:00", "22:00-23:00"
   ];
   const COLORS = ["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6","#1abc9c"];
-  let allData = {}; // { username: { "Lunes|08:00–09:00": "green"|"red", ... } }
-  let registeredUsers = {}; // { username: { color } }
+  let allData = {};
+  let registeredUsers = {};
+  let numReuniones = 2; // cuántos días de reunión buscar
 
   // ————— ESCUCHA CAMBIOS EN TIEMPO REAL —————
   onValue(ref(db, "horarios"), (snapshot) => {
@@ -72,7 +74,7 @@
     remove(ref(db, `horarios/${user}`));
   };
 
-  // ————— RENDER MATRIZ —————
+  // ————— RENDER MATRIZ (días en horizontal) —————
   window.renderMatrix = function() {
     const container = document.getElementById("matrix-container");
     if (!container) return;
@@ -83,29 +85,40 @@
       return;
     }
 
-    let html = `<div class="matrix-wrapper">`;
+    // Construye tabla: filas = slots, columnas = días × usuarios + resumen
+    // Header row 1: días (colspan = users + 1 por resumen)
+    // Header row 2: usuarios por día
+    // Body rows: slot + celdas + resumen por día
 
+    let html = `<div class="matrix-scroll"><table class="big-table">`;
+
+    // ——— HEADER fila 1: días ———
+    html += `<thead><tr><th class="th-corner" rowspan="2"></th>`;
     DAYS.forEach(day => {
-      html += `<div class="day-block">
-        <div class="day-label">${day}</div>
-        <div class="grid-outer">
-          <div class="grid-head">
-            <div class="slot-label-head"></div>
-            ${users.map(u => {
-              const color = registeredUsers[u]?.color || "#888";
-              const isMe = u === currentUser;
-              return `<div class="user-head" style="border-top: 3px solid ${color}">
-                <span class="user-dot" style="background:${color}"></span>
-                ${u}${isMe ? ' <span class="you-tag">tú</span>' : ''}
-              </div>`;
-            }).join("")}
-            <div class="summary-head">resumen</div>
-          </div>`;
+      html += `<th class="th-day" colspan="${users.length + 1}">${day}</th>`;
+    });
+    html += `</tr>`;
 
-      SLOTS.forEach(slot => {
-        html += `<div class="grid-row">
-          <div class="slot-label">${slot}</div>`;
+    // ——— HEADER fila 2: usuarios por cada día ———
+    html += `<tr>`;
+    DAYS.forEach(() => {
+      users.forEach(u => {
+        const color = registeredUsers[u]?.color || "#888";
+        const isMe = u === currentUser;
+        html += `<th class="th-user" style="border-top: 3px solid ${color}">
+          <span class="user-dot" style="background:${color}"></span>
+          ${u}${isMe ? ' <span class="you-tag">tú</span>' : ''}
+        </th>`;
+      });
+      html += `<th class="th-summary">resumen</th>`;
+    });
+    html += `</tr></thead>`;
 
+    // ——— BODY: filas de slots ———
+    html += `<tbody>`;
+    SLOTS.forEach(slot => {
+      html += `<tr><td class="td-slot">${slot}</td>`;
+      DAYS.forEach(day => {
         users.forEach(u => {
           const key = `${day}|${slot}`;
           const val = allData[u]?.[key];
@@ -114,41 +127,101 @@
           if (val === "green") cellClass += " cell-green";
           else if (val === "red") cellClass += " cell-red";
           else cellClass += " cell-empty";
+          const icon = val === "green" ? "✓" : val === "red" ? "✗" : "·";
 
           if (isMe) {
-            html += `<div class="${cellClass} cell-clickable" 
+            html += `<td class="${cellClass} cell-clickable"
               onclick="window.cycleCell('${u}','${day}','${slot}')"
-              title="Click para cambiar">
-              ${val === "green" ? "✓" : val === "red" ? "✗" : "·"}
-            </div>`;
+              title="Click para cambiar">${icon}</td>`;
           } else {
-            html += `<div class="${cellClass}">
-              ${val === "green" ? "✓" : val === "red" ? "✗" : "·"}
-            </div>`;
+            html += `<td class="${cellClass}">${icon}</td>`;
           }
         });
 
-        // Columna resumen
-        const available = users.filter(u => allData[u]?.[`${day}|${slot}`] === "green").length;
-        const busy = users.filter(u => allData[u]?.[`${day}|${slot}`] === "red").length;
+        // Celda resumen por día
         const total = users.length;
+        const available = users.filter(u => allData[u]?.[`${day}|${slot}`] === "green").length;
         const pct = total > 0 ? Math.round((available / total) * 100) : 0;
-        const summaryClass = pct === 100 ? "summary-full" : pct >= 50 ? "summary-half" : "summary-low";
-
-        html += `<div class="summary-cell ${summaryClass}">
+        const sc = pct === 100 ? "summary-full" : pct >= 50 ? "summary-half" : "summary-low";
+        html += `<td class="summary-cell ${sc}">
           <span class="summary-num">${available}/${total}</span>
           <div class="summary-bar"><div class="summary-fill" style="width:${pct}%"></div></div>
-        </div>`;
-
-        html += `</div>`;
+        </td>`;
       });
-
-      html += `</div></div></div>`;
+      html += `</tr>`;
     });
+    html += `</tbody></table></div>`;
 
-    html += `</div>`;
     container.innerHTML = html;
   };
+
+  // ————— CALCULAR GANADORES —————
+  window.calcWinners = function() {
+    const users = Object.keys(registeredUsers);
+    const total = users.length;
+    if (total === 0) { showToast("No hay compañeros registrados"); return; }
+
+    // Puntaje por cada (día, slot): % disponibles - penalización por ocupados
+    const scores = [];
+    DAYS.forEach(day => {
+      SLOTS.forEach(slot => {
+        const key = `${day}|${slot}`;
+        const available = users.filter(u => allData[u]?.[key] === "green").length;
+        const busy = users.filter(u => allData[u]?.[key] === "red").length;
+        const score = available * 2 - busy; // puntaje simple
+        scores.push({ day, slot, available, busy, total, score });
+      });
+    });
+
+    // Ordena por score desc, luego disponibles desc
+    scores.sort((a, b) => b.score - a.score || b.available - a.available);
+
+    // Toma los mejores N (uno por día si es posible, sino los mejores en general)
+    const n = numReuniones;
+    const winners = [];
+    const usedDays = new Set();
+
+    // Primero intenta 1 ganador por día distinto
+    for (const s of scores) {
+      if (winners.length >= n) break;
+      if (!usedDays.has(s.day)) {
+        winners.push(s);
+        usedDays.add(s.day);
+      }
+    }
+    // Si no alcanzó (hay menos días que n), completa con lo que queda
+    if (winners.length < n) {
+      for (const s of scores) {
+        if (winners.length >= n) break;
+        if (!winners.includes(s)) winners.push(s);
+      }
+    }
+
+    renderWinners(winners, n);
+  };
+
+  function renderWinners(winners, n) {
+    const panel = document.getElementById("winners-panel");
+    const pct = w => Math.round((w.available / w.total) * 100);
+    panel.innerHTML = `
+      <div class="winners-title">🏆 Mejores ${n} horario${n > 1 ? "s" : ""}</div>
+      ${winners.map((w, i) => `
+        <div class="winner-card rank-${i}">
+          <div class="winner-rank">#${i+1}</div>
+          <div class="winner-info">
+            <div class="winner-slot">${w.day} · ${w.slot}</div>
+            <div class="winner-bar-wrap">
+              <div class="winner-bar" style="width:${pct(w)}%"></div>
+            </div>
+            <div class="winner-detail">${w.available}/${w.total} disponibles
+              ${w.busy > 0 ? `<span class="winner-busy">· ${w.busy} ocupado${w.busy > 1 ? "s" : ""}</span>` : ""}
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    `;
+    panel.style.display = "block";
+  }
 
   // ————— RENDER LISTA USUARIOS —————
   window.renderUserList = function() {
@@ -538,104 +611,83 @@
   /* CONTENT */
   .content { padding: 28px 28px; overflow-x: auto; }
 
-  .matrix-wrapper { display: flex; flex-direction: column; gap: 32px; }
+  .matrix-scroll { overflow-x: auto; }
 
-  .day-block {}
-
-  .day-label {
-    font-family: var(--font-head);
-    font-weight: 800;
-    font-size: 1.1rem;
-    color: var(--accent);
-    letter-spacing: -0.01em;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .day-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .grid-outer {
+  .big-table {
+    border-collapse: collapse;
+    min-width: 100%;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;
+    font-size: 0.75rem;
   }
 
-  .grid-head, .grid-row {
-    display: grid;
-    grid-template-columns: 120px repeat(auto-fill, minmax(80px, 1fr)) 100px;
+  .th-corner {
+    background: var(--surface2);
+    min-width: 90px;
+    border-right: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
   }
 
-  .grid-head { background: var(--surface2); }
-  .grid-row:last-child { border-bottom: none; }
-  .grid-row:hover { background: rgba(255,255,255,0.02); }
-
-  .slot-label-head, .slot-label {
-    padding: 10px 14px;
-    font-size: 0.7rem;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    border-right: 1px solid var(--border);
-  }
-
-  .slot-label-head { font-weight: 600; }
-
-  .user-head {
-    padding: 10px 8px;
-    font-size: 0.72rem;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    border-right: 1px solid var(--border);
-    flex-direction: column;
-    text-align: center;
-    justify-content: center;
-  }
-
-  .user-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .you-tag {
-    font-size: 0.58rem;
-    background: var(--accent);
-    color: #000;
-    padding: 0 4px;
-    border-radius: 4px;
+  .th-day {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    font-family: var(--font-head);
     font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    text-align: center;
   }
 
-  .summary-head {
-    padding: 10px 8px;
-    font-size: 0.65rem;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .th-user {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 6px;
+    text-align: center;
+    min-width: 62px;
+    font-weight: 400;
+    color: var(--text);
+    vertical-align: bottom;
+  }
+
+  .th-summary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 6px;
+    text-align: center;
+    min-width: 72px;
+    font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    color: var(--muted);
+    vertical-align: bottom;
   }
+
+  .td-slot {
+    padding: 8px 12px;
+    color: var(--muted);
+    font-size: 0.68rem;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    background: var(--surface2);
+    font-weight: 500;
+  }
+
+  .big-table tbody tr:last-child td { border-bottom: none; }
+  .big-table tbody tr:hover { background: rgba(255,255,255,0.015); }
 
   /* CELLS */
   .cell {
-    padding: 9px 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 8px 6px;
+    text-align: center;
     border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     font-size: 0.85rem;
-    transition: background 0.15s;
+    transition: background 0.12s;
     user-select: none;
   }
 
@@ -643,46 +695,31 @@
   .cell-green { background: var(--green-bg); color: var(--green); }
   .cell-red   { background: var(--red-bg);   color: var(--red); }
 
-  .cell-clickable {
-    cursor: pointer;
-  }
-
-  .cell-clickable:hover {
-    filter: brightness(1.3);
-    background: rgba(255,255,255,0.05);
-  }
-
+  .cell-clickable { cursor: pointer; }
+  .cell-clickable:hover { filter: brightness(1.3); background: rgba(255,255,255,0.05); }
   .cell-clickable.cell-green:hover { background: rgba(61,220,132,0.25); }
   .cell-clickable.cell-red:hover   { background: rgba(255,95,109,0.25); }
 
   /* SUMMARY */
   .summary-cell {
-    padding: 9px 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
+    padding: 8px 8px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
 
-  .summary-num {
-    font-size: 0.72rem;
-    font-weight: 500;
-  }
+  .summary-num { font-size: 0.68rem; font-weight: 500; display: block; margin-bottom: 3px; }
 
   .summary-bar {
-    width: 60px;
-    height: 4px;
+    width: 48px; height: 4px;
     background: var(--border);
     border-radius: 2px;
     overflow: hidden;
+    margin: 0 auto;
   }
 
-  .summary-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.3s;
-  }
+  .summary-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
 
   .summary-full .summary-fill  { background: var(--green); }
   .summary-full .summary-num   { color: var(--green); }
@@ -690,6 +727,119 @@
   .summary-half .summary-num   { color: #f0c040; }
   .summary-low .summary-fill   { background: var(--red); }
   .summary-low .summary-num    { color: var(--muted); }
+
+  /* WINNERS PANEL */
+  #winners-panel {
+    display: none;
+    margin-bottom: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .winners-title {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--accent);
+    margin-bottom: 14px;
+    letter-spacing: 0.02em;
+  }
+
+  .winner-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
+  }
+
+  .rank-0 { border-color: #f0c040; }
+  .rank-1 { border-color: #8899aa; }
+  .rank-2 { border-color: #b87040; }
+
+  .winner-rank {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 1.1rem;
+    min-width: 28px;
+    color: var(--muted);
+  }
+
+  .rank-0 .winner-rank { color: #f0c040; }
+  .rank-1 .winner-rank { color: #8899aa; }
+  .rank-2 .winner-rank { color: #b87040; }
+
+  .winner-info { flex: 1; }
+
+  .winner-slot {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 5px;
+    font-family: var(--font-head);
+  }
+
+  .winner-bar-wrap {
+    width: 100%; height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+
+  .winner-bar { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.5s; }
+
+  .winner-detail { font-size: 0.7rem; color: var(--muted); }
+  .winner-busy { color: var(--red); }
+
+  /* REUNIONES CONTROL */
+  .reuniones-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .reuniones-row label { font-size: 0.75rem; color: var(--muted); }
+
+  .num-input {
+    width: 52px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    outline: none;
+    text-align: center;
+  }
+
+  .num-input:focus { border-color: var(--accent); }
+
+  .btn-winners {
+    width: 100%;
+    margin-top: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    color: var(--accent);
+    padding: 9px 14px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+  }
+
+  .btn-winners:hover { background: var(--accent); color: #000; }
 
   .empty-state {
     padding: 60px;
@@ -727,10 +877,9 @@
     .main { grid-template-columns: 1fr; }
     .sidebar { position: static; height: auto; }
     .content { padding: 16px; }
-    .grid-head, .grid-row {
-      grid-template-columns: 90px repeat(auto-fill, minmax(55px, 1fr)) 75px;
-    }
-    .slot-label { font-size: 0.62rem; padding: 8px 8px; }
+    .td-slot { font-size: 0.6rem; padding: 6px 6px; min-width: 72px; }
+    .cell { padding: 6px 4px; font-size: 0.75rem; }
+    .th-user { min-width: 44px; font-size: 0.65rem; }
   }
 </style>
 </head>
@@ -745,6 +894,17 @@
 <div class="main">
   <!-- SIDEBAR -->
   <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">📅 Reuniones por semana</div>
+      <div class="reuniones-row">
+        <label>Buscar los mejores</label>
+        <input type="number" id="num-reuniones" class="num-input" value="2" min="1" max="5"
+          onchange="numReuniones = Math.max(1, Math.min(5, parseInt(this.value)||2))">
+        <label>día(s)</label>
+      </div>
+      <button class="btn-winners" onclick="window.calcWinners()">⚡ Ver mejores horarios</button>
+    </div>
 
     <div class="sidebar-section">
       <div class="sidebar-title">👥 Añadir compañero</div>
@@ -797,6 +957,7 @@
 
   <!-- CONTENT -->
   <main class="content">
+    <div id="winners-panel"></div>
     <div id="matrix-container">
       <div class="empty-state">Añade compañeros en el panel izquierdo para comenzar</div>
     </div>
